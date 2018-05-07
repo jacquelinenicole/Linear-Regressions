@@ -32,11 +32,11 @@ Column    Stat
 24        Promotion Year
 """
 
-
-import numpy as np
 import pandas as pd
 import math
-
+from scipy import stats
+import numpy as np
+import statsmodels as sm
 
 # create DataFrame
 df = pd.read_csv(open("GSS_Experience_Metadata.csv", "rb"))
@@ -46,7 +46,7 @@ df = pd.read_csv(open("GSS_Experience_Metadata.csv", "rb"))
 def get_b(x_sum, y_sum, xs_sum, xy_sum, xsum_squared, sample_size):
     return ((y_sum * xs_sum) - (x_sum * xy_sum))/((sample_size * xs_sum) - xsum_squared)
 
-# slope formula
+# regression coefficient formula
 def get_m(x_sum, y_sum, xs_sum, xy_sum, xsum_squared, sample_size):
     return ((sample_size * xy_sum) - (x_sum * y_sum))/((sample_size * xs_sum) - (xsum_squared))
 
@@ -54,8 +54,24 @@ def get_m(x_sum, y_sum, xs_sum, xy_sum, xsum_squared, sample_size):
 def get_r(x_sum, y_sum, xs_sum, ys_sum, xy_sum, xsum_squared, ysum_squared, sample_size):
     return ((sample_size * xy_sum) - (x_sum * y_sum))/math.sqrt(((sample_size * xs_sum) - (xsum_squared))*((sample_size * ys_sum) - (ysum_squared)))
 
-# gets numbers needed to compute b, m, or r
-def format_data(x, y, letter):    
+# standard error formula
+def get_std_err(x, sample_size):
+    return get_std_dev(x, sample_size)/math.sqrt(sample_size)
+
+def get_std_dev(x, sample_size):
+    mean = get_mean(x, sample_size)
+    summed = 0
+    
+    for data_point in x:
+        summed += pow(data_point-mean, 2)
+    
+    return math.sqrt(summed/(sample_size-1))
+    
+def get_mean(sample_data, sample_size):
+    return sum(sample_data)/sample_size
+
+# gets numbers needed to compute b, m, and r
+def format_data(x, y):    
     for i in range(len(x)):
         x[i] = int(x[i])
         y[i] = int(y[i])
@@ -69,27 +85,26 @@ def format_data(x, y, letter):
         y_squared_sum += (y[i]*y[i])
         x_squared_sum += (x[i]*x[i])
         
-    if letter == 'b':
-        return get_b(sum(x), sum(y), x_squared_sum, x_y_sum, sum(x) * sum(x), len(x))
-    
-    elif letter == 'm':
-        return get_m(sum(x), sum(y), x_squared_sum, x_y_sum, sum(x) * sum(x), len(x))
-    
-    elif letter == 'r':
-        return get_r(sum(x), sum(y), x_squared_sum, y_squared_sum, x_y_sum, sum(x) * sum(x), sum(y) * sum(y), len(x))
-    
-    else:
-        return "Invalid character"
-    
-def print_helper(col_name, x, y):
-    b = format_data(x, y, 'b')
-    m = format_data(x, y, 'm')
-    r_squared = pow(format_data(x, y, 'r'), 2)
-    print("\n-- " + str(col_name) + " --")
-    print("Equation: y = " + str(m) + "x + " + str(b))
-    print("Coefficient of Determination (r^2): " + str(r_squared))
+    return get_b(sum(x), sum(y), x_squared_sum, x_y_sum, sum(x) * sum(x), len(x)), get_m(sum(x), sum(y), x_squared_sum, x_y_sum, sum(x) * sum(x), len(x)), get_r(sum(x), sum(y), x_squared_sum, y_squared_sum, x_y_sum, sum(x) * sum(x), sum(y) * sum(y), len(x))
 
-def get_data(col_name):
+def print_helper(col_name, x, y):
+    b, m, r = format_data(x, y)
+    r_squared = pow(r, 2)
+    print("\n-- " + str(col_name) + " --")
+    
+    # round numbers so output is easier to read
+    m = round(m, 3)
+    b = round(b, 3)
+    r_squared = round(r_squared, 3)
+    
+    if b < 0:
+        print("Equation: y = " + str(m) + "x - " + str(b*-1))
+    else:
+        print("Equation: y = " + str(m) + "x + " + str(b))
+    
+    print("Coefficient of Determination (r^2): " + str(r_squared))
+    
+def create_data_array(col_name):
     x = []
     y = []
     counter = 0
@@ -103,16 +118,19 @@ def get_data(col_name):
             y.append(df.iloc[counter, 4])
         
         counter += 1
-    
+        
     return x, y
-    
 
 
-get_data("Knowledge")
-get_data("Friendliness")
-get_data("Server Attentiveness")
-get_data("Overall Cleanliness")
-get_data("Overall Comfort")
-get_data("Value for Money")
 
-print_helper(col_name, x, y)
+columns = ['Knowledge', 'Friendliness', 'Server Attentiveness', 'Overall Cleanliness', 
+           'Overall Comfort', 'Value for Money']
+
+
+
+
+lists_x = []
+
+for col in columns:
+    x, y = create_data_array(col)
+    print_helper(col, x, y)
