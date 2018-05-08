@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Apr 29 02:44:56 2018
-
 @author: Jackie
 
 Column    Stat
@@ -34,13 +33,9 @@ Column    Stat
 
 import pandas as pd
 import math
-from scipy import stats
-import numpy as np
-import statsmodels as sm
 
 # create DataFrame
 df = pd.read_csv(open("GSS_Experience_Metadata.csv", "rb"))
-
 
 # y-intercept formula
 def get_b(x_sum, y_sum, xs_sum, xy_sum, xsum_squared, sample_size):
@@ -92,7 +87,7 @@ def print_helper(col_name, x, y):
     r_squared = pow(r, 2)
     print("\n-- " + str(col_name) + " --")
     
-    # round numbers so output is easier to read
+    # rounds numbers so output is easier to read
     m = round(m, 3)
     b = round(b, 3)
     r_squared = round(r_squared, 3)
@@ -121,16 +116,46 @@ def create_data_array(col_name):
         
     return x, y
 
+def multi_create_data_array(x_list, y_loc):
+    x = []
+    y = []
+    
+    # columns to check
+    cols = [6, 7, 8, 9, 10, 13]
+    
+    for i in range(len(df[x_list[0]])):
+        # if dependent variable was left blank, skip
+        if df.iloc[i, y_loc] == ' ':
+            continue
+        
+        # reset
+        curr_val = 0
+        flag = 0
+        
+        for col in cols:
+            # make sure no column is blank
+            if df.iloc[i, col] == ' ':
+                flag = 1
+                break
+            else: 
+                curr_val += int(df.iloc[i, col])
+        
+        # only append scores if all areas were scored
+        if flag != 1:
+            x.append(curr_val/len(x_list))
+            y.append(df.iloc[i, y_loc])
+    
+    return x, y
 
 
 columns = ['Knowledge', 'Friendliness', 'Server Attentiveness', 'Overall Cleanliness', 
            'Overall Comfort', 'Value for Money']
 
-
-
-
-lists_x = []
-
+# individual regressions
 for col in columns:
     x, y = create_data_array(col)
     print_helper(col, x, y)
+
+# combined regression
+x, y = multi_create_data_array(columns, 4)
+print_helper("Overall", x, y)
